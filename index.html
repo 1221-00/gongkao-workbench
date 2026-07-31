@@ -221,6 +221,22 @@ canvas{max-width:100%}
 .ring-svg .fg-ring{fill:none;stroke:var(--primary);stroke-width:8;stroke-linecap:round;transition:.5s;transform:rotate(-90deg);transform-origin:center}
 .ring-info .ri-num{font-size:24px;font-weight:800;color:var(--primary)}
 .ring-info .ri-lbl{font-size:11px;color:var(--text-subtle)}
+/* Quiz */
+.quiz-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
+.quiz-q{font-size:15px;font-weight:600;line-height:1.6;margin-bottom:12px;white-space:pre-wrap}
+.quiz-opt{display:block;width:100%;text-align:left;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:7px;font-size:14px;transition:.15s;background:#fff}
+.quiz-opt:active{background:var(--primary-bg)}
+.quiz-opt.selected{border-color:var(--primary);background:var(--primary-bg)}
+.quiz-opt.correct{border-color:var(--success);background:#c6f6d5;color:#276749;font-weight:600}
+.quiz-opt.wrong{border-color:var(--danger);background:#fed7d7;color:#9b2c2c;font-weight:600}
+.quiz-prog{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;color:var(--text-subtle)}
+.quiz-prog .qp-bar{flex:1;height:5px;background:#e2e8f0;border-radius:3px;margin:0 10px;overflow:hidden}
+.quiz-prog .qp-bar .fill{height:100%;background:var(--primary);border-radius:3px;transition:.4s}
+.quiz-result{text-align:center;padding:20px}
+.quiz-result .score{font-size:36px;font-weight:800;color:var(--primary)}
+.quiz-nav{display:flex;gap:8px;margin-top:12px}
+.quiz-nav .btn{flex:1}
+.qi-example{font-size:12px;color:var(--text-subtle);background:#f8fafc;border-radius:8px;padding:10px;margin-top:8px;white-space:pre-wrap;line-height:1.5}
 </style>
 </head>
 <body>
@@ -229,6 +245,7 @@ canvas{max-width:100%}
   <nav class="bottom-nav">
     <button class="active" data-page="countdown" onclick="showPage('countdown',this)"><span class="icon">🎯</span>倒计时</button>
     <button data-page="plan" onclick="showPage('plan',this)"><span class="icon">📋</span>任务</button>
+    <button data-page="quiz" onclick="showPage('quiz',this)"><span class="icon">✏️</span>刷题</button>
     <button data-page="stats" onclick="showPage('stats',this)"><span class="icon">📊</span>做题</button>
     <button data-page="error" onclick="showPage('error',this)"><span class="icon">❌</span>错题</button>
     <button data-page="news" onclick="showPage('news',this)"><span class="icon">📰</span>时政</button>
@@ -279,6 +296,19 @@ canvas{max-width:100%}
       <div class="card-title"><span class="left">📝 长期学习计划</span><button class="btn btn-light btn-sm" onclick="openModal('modal-plan')">+ 计划</button></div>
       <div class="section-tabs" id="planTabs"></div>
       <div id="planList"></div>
+    </div>
+  </section>
+
+  <!-- 刷题模块 -->
+  <section class="page" id="page-quiz">
+    <div class="card" id="quizMain">
+      <div class="card-title"><span class="left">✏️ 刷题</span>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-light btn-sm" onclick="openQuizImport()">导入题库</button>
+          <button class="btn btn-light btn-sm" onclick="resetQuiz()">重做</button>
+        </div>
+      </div>
+      <div id="quizArea"></div>
     </div>
   </section>
 
@@ -448,6 +478,38 @@ canvas{max-width:100%}
   <button class="btn btn-danger btn-block" style="margin-top:8px" id="delCheckinBtn" onclick="delCheckin()">删除打卡</button>
 </div></div>
 
+<!-- 导入题库模态框 -->
+<div class="modal-overlay" id="modal-quiz-import"><div class="modal"><div class="modal-handle"></div><h3>导入题库</h3>
+  <div class="form-row"><label>所属板块</label><select id="quizSection" class="input"></select></div>
+  <div class="form-row"><label>粘贴题目（每题用空行分隔，格式见下方示例）</label>
+    <textarea id="quizInput" rows="10" placeholder="1. 题目内容
+A. 选项A
+B. 选项B
+C. 选项C
+D. 选项D
+答案：A
+
+2. 下一道题..."></textarea></div>
+  <div class="qi-example">格式说明：
+1. 每题以数字序号开头（1. 2. 3.）
+2. 选项以 A. B. C. D. 开头
+3. 最后一行写"答案：X"或"答案X"
+4. 题与题之间用空行分隔
+
+示例：
+1. 我国宪法规定，中华人民共和国的根本制度是？
+A. 社会主义制度
+B. 人民代表大会制度
+C. 民主集中制
+D. 民族区域自治
+答案：A</div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn btn-light" style="flex:1" onclick="loadSampleQuiz()">加载示例</button>
+    <button class="btn btn-primary" style="flex:1" onclick="importQuiz()">导入</button>
+  </div>
+  <button class="btn btn-ghost btn-block" style="margin-top:8px" onclick="closeModal('modal-quiz-import')">取消</button>
+</div></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -495,6 +557,7 @@ function showPage(p,btn){
   if(btn)btn.classList.add('active');
   if(p==='stats')renderTrend();
   if(p==='calendar')renderLineChart();
+  if(p==='quiz')renderQuiz();
   if(p==='news')fetchNews();
   if(p==='kp')genDailyKP();
   window.scrollTo(0,0);
@@ -1214,6 +1277,175 @@ function renderAll(){
   renderErrorTabs();renderErrors();genWeeklySummary();
   renderCalendar();renderLineChart();
 }
+/* ============================================================
+   刷题模块（导入题库做题）
+   ============================================================ */
+let quizBank=[]; // 当前刷题题库
+let quizIdx=0,quizAnswered={},quizResults={right:0,wrong:0,total:0};
+
+function openQuizImport(){
+  // 填充板块
+  const sel=document.getElementById('quizSection');
+  sel.innerHTML=SECTIONS.map(s=>`<option value="${s.key}">${s.name}</option>`).join('');
+  openModal('modal-quiz-import');
+}
+function loadSampleQuiz(){
+  const sample=`1. 我国宪法规定，中华人民共和国的根本制度是？
+A. 社会主义制度
+B. 人民代表大会制度
+C. 民主集中制
+D. 民族区域自治制度
+答案：A
+
+2. "百千万工程"是广东省推动高质量发展的头号工程，其全称是？
+A. 百县千镇万村高质量发展工程
+B. 百城千街万区发展工程
+C. 百企千人万众创新工程
+D. 百校千院万人就业工程
+答案：A
+
+3. 新质生产力的核心标志是什么大幅提升？
+A. 劳动生产率
+B. 资本回报率
+C. 全要素生产率
+D. 资源利用率
+答案：C
+
+4. 中国式现代化的本质特征之一是？
+A. 优先发展重工业
+B. 全体人民共同富裕
+C. 照搬西方模式
+D. 单纯追求GDP增长
+答案：B
+
+5. 全过程人民民主不包括以下哪个环节？
+A. 民主选举
+B. 民主协商
+C. 民主决策
+D. 民主竞争
+答案：D`;
+  document.getElementById('quizInput').value=sample;
+  toast('已加载示例题库');
+}
+function parseQuiz(text,section){
+  const questions=[];
+  // 按空行分题
+  const blocks=text.split(/\n\s*\n/).filter(b=>b.trim());
+  blocks.forEach(block=>{
+    const lines=block.trim().split('\n').map(l=>l.trim()).filter(l=>l);
+    if(lines.length<3)return;
+    // 找题干和选项
+    let stem='',opts=[],answer='';
+    let inStem=true;
+    lines.forEach((line)=>{
+      // 匹配答案
+      const ansMatch=line.match(/^答案[:：]\s*([A-D])/);
+      if(ansMatch){answer=ansMatch[1];return}
+      // 匹配选项 A. xxx
+      const optMatch=line.match(/^([A-D])[.、)]\s*(.+)/);
+      if(optMatch){opts.push(optMatch[2]);inStem=false;return}
+      // 题干
+      if(inStem){stem+=(stem?' ':'')+line.replace(/^\d+[.、)]?\s*/,'')}
+    });
+    if(stem&&opts.length>=2&&answer){
+      questions.push({id:uid(),section,stem,opts:opts.slice(0,4),answer,selected:null});
+    }
+  });
+  return questions;
+}
+function importQuiz(){
+  const text=document.getElementById('quizInput').value.trim();
+  const section=document.getElementById('quizSection').value;
+  if(!text){toast('请粘贴题目内容');return}
+  const parsed=parseQuiz(text,section);
+  if(!parsed.length){toast('未识别到有效题目，请检查格式');return}
+  // 存到 DB
+  if(!DB.quizzes)DB.quizzes=[];
+  DB.quizzes=DB.quizzes.concat(parsed);
+  save();
+  // 设置当前刷题
+  quizBank=parsed.slice();
+  quizIdx=0;quizAnswered={};quizResults={right:0,wrong:0,total:0};
+  closeModal('modal-quiz-import');
+  toast(`已导入 ${parsed.length} 道题`);
+  renderQuiz();
+}
+function startQuizFromBank(section){
+  if(!DB.quizzes||!DB.quizzes.length){openQuizImport();return}
+  quizBank=section==='all'?DB.quizzes.slice():DB.quizzes.filter(q=>q.section===section);
+  if(!quizBank.length){toast('该板块暂无题目');return}
+  quizIdx=0;quizAnswered={};quizResults={right:0,wrong:0,total:0};
+  renderQuiz();
+}
+function resetQuiz(){quizIdx=0;quizAnswered={};quizResults={right:0,wrong:0,total:0};renderQuiz();toast('已重置')}
+function selectQuiz(id,optIdx){
+  const q=quizBank[quizIdx];
+  if(quizAnswered[q.id])return; // 已答过
+  q.selected=optIdx;
+  quizAnswered[q.id]=true;
+  quizResults.total++;
+  if(optIdx===q.answer.charCodeAt(0)-65){quizResults.right++}
+  else{quizResults.wrong++}
+  renderQuiz();
+}
+function nextQuiz(){if(quizIdx<quizBank.length-1){quizIdx++;renderQuiz()}}
+function prevQuiz(){if(quizIdx>0){quizIdx--;renderQuiz()}}
+function renderQuiz(){
+  const area=document.getElementById('quizArea');
+  if(!quizBank.length){
+    area.innerHTML='<div class="empty"><div class="ic">✏️</div>暂无题库<br><button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="openQuizImport()">导入题目</button></div>';
+    return;
+  }
+  // 全部做完显示结果
+  if(quizResults.total===quizBank.length){
+    const rate=Math.round(quizResults.right/quizResults.total*100);
+    // 自动记录到做题统计
+    const sec=quizBank[0].section;
+    if(!DB.stats)DB.stats=[];
+    const exist=DB.stats.find(s=>s.date===todayStr()&&s.section===sec&&s._auto);
+    if(exist){exist.total+=quizResults.total;exist.right+=quizResults.right}
+    else DB.stats.push({id:uid(),section:sec,total:quizResults.total,right:quizResults.right,date:todayStr(),minutes:0,_auto:true});
+    save();renderStatSummary();
+    area.innerHTML=`<div class="quiz-result">
+      <div class="score">${quizResults.right}/${quizResults.total}</div>
+      <div style="font-size:14px;color:var(--text-subtle);margin-top:4px">正确率 ${rate}%</div>
+      <div style="font-size:13px;color:var(--text-subtle);margin-top:10px">✅ 答对 ${quizResults.right} 题　❌ 答错 ${quizResults.wrong} 题</div>
+      <div style="font-size:12px;color:var(--text-subtle);margin-top:6px">已自动记录到做题统计</div>
+      <div class="quiz-nav">
+        <button class="btn btn-light" onclick="resetQuiz()">重新做</button>
+        <button class="btn btn-primary" onclick="document.querySelector('[data-page=stats]').click()">查看统计</button>
+      </div>
+    </div>`;
+    return;
+  }
+  const q=quizBank[quizIdx];
+  const answered=quizAnswered[q.id];
+  let optsHtml=q.opts.map((opt,i)=>{
+    const letter=String.fromCharCode(65+i);
+    let cls='';
+    if(answered){
+      if(letter===q.answer)cls='correct';
+      else if(i===q.selected)cls='wrong';
+    }else if(i===q.selected)cls='selected';
+    return `<button class="quiz-opt ${cls}" onclick="selectQuiz('${q.id}',${i})" ${answered?'disabled':''}>${letter}. ${escapeHtml(opt)}</button>`;
+  }).join('');
+  const pct=(quizIdx+1)/quizBank.length*100;
+  area.innerHTML=`<div class="quiz-prog">
+    <span>${quizIdx+1}/${quizBank.length}</span>
+    <div class="qp-bar"><div class="fill" style="width:${pct}%"></div></div>
+    <span style="color:var(--primary);font-weight:600">${quizResults.right}对 ${quizResults.wrong}错</span>
+  </div>
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="tag ${secCls(q.section)}">${secName(q.section)}</span> ${escapeHtml(q.stem)}</div>
+    ${optsHtml}
+    ${answered&&q.answer!==String.fromCharCode(65+q.selected)?`<div style="font-size:13px;color:var(--danger);margin-top:8px">✓ 正确答案：${q.answer}</div>`:''}
+  </div>
+  <div class="quiz-nav">
+    <button class="btn btn-light" onclick="prevQuiz()" ${quizIdx===0?'disabled':''}>‹ 上一题</button>
+    ${quizIdx<quizBank.length-1?`<button class="btn btn-primary" onclick="nextQuiz()">下一题 ›</button>`:''}
+  </div>`;
+}
+
 function init(){
   load();fillSectionSelects();initCal();
   document.getElementById('examDate').value=todayStr();
