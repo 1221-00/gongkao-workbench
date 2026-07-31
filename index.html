@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#2b6cb0">
+<meta name="theme-color" content="#2f855a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="公考工作台">
@@ -13,10 +13,10 @@
 <title>广东省考学习工作台</title>
 <style>
 :root{
-  --primary:#2b6cb0;--primary-light:#4299e1;--primary-dark:#1a4971;--primary-bg:#ebf4ff;--primary-bg2:#dbeafe;
-  --bg:#f7f9fc;--card:#fff;--text:#1a202c;--text-subtle:#64748b;--border:#e2e8f0;
+  --primary:#2f855a;--primary-light:#48bb78;--primary-dark:#1a4734;--primary-bg:#e6f7ee;--primary-bg2:#c6f0d5;
+  --bg:#f4f9f6;--card:#fff;--text:#1a202c;--text-subtle:#5a7263;--border:#d4e4da;
   --success:#48bb78;--warning:#ed8936;--danger:#e53e3e;--gold:#ecc94b;
-  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.03);
   --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.04);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -234,8 +234,7 @@ canvas{max-width:100%}
     <button data-page="news" onclick="showPage('news',this)"><span class="icon">📰</span>时政</button>
     <button data-page="kp" onclick="showPage('kp',this)"><span class="icon">💡</span>考点</button>
     <button data-page="calendar" onclick="showPage('calendar',this)"><span class="icon">📅</span>打卡</button>
-    <button data-page="chart" onclick="showPage('chart',this)"><span class="icon">📈</span>统计</button>
-  </nav>
+</nav>
   <!-- 右侧主内容区 -->
   <div class="main-area">
   <header class="app-header">
@@ -367,10 +366,7 @@ canvas{max-width:100%}
         <div class="stat-box"><div class="v" id="streak">0</div><div class="l">连续天数</div></div>
       </div>
     </div>
-  </section>
-
-  <!-- 折线图 -->
-  <section class="page" id="page-chart">
+    <!-- 学习时长折线图（合并到打卡页） -->
     <div class="card">
       <div class="card-title"><span class="left">📈 学习时长统计</span></div>
       <div class="section-tabs" id="chartTabs">
@@ -498,7 +494,7 @@ function showPage(p,btn){
   document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   if(p==='stats')renderTrend();
-  if(p==='chart')renderLineChart();
+  if(p==='calendar')renderLineChart();
   if(p==='news')fetchNews();
   if(p==='kp')genDailyKP();
   window.scrollTo(0,0);
@@ -696,7 +692,7 @@ function renderTrend(){
   const days=[],labels=[];
   for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(ds);labels.push((d.getMonth()+1)+'/'+d.getDate())}
   const data=days.map(ds=>DB.stats.filter(s=>s.date===ds).reduce((a,s)=>a+s.total,0));
-  drawLineChart(ctx,w,140,labels,data,1,'#4299e1',true);
+  drawLineChart(ctx,w,140,labels,data,1,'#48bb78',true);
 }
 
 /* ============================================================
@@ -911,7 +907,7 @@ function renderLineChart(){
   document.getElementById('chartTotal').textContent=total.toFixed(1)+'h';
   document.getElementById('chartAvg').textContent=avg.toFixed(1)+'h';
   document.getElementById('chartMax').textContent=Math.max(...data).toFixed(1)+'h';
-  drawLineChart(ctx,w,220,labels,data,2,'#2b6cb0',true);
+  drawLineChart(ctx,w,220,labels,data,2,'#2f855a',true);
 }
 function drawLineChart(ctx,w,h,labels,data,yStep,color,fill){
   ctx.clearRect(0,0,w,h);
