@@ -237,6 +237,23 @@ canvas{max-width:100%}
 .quiz-nav{display:flex;gap:8px;margin-top:12px}
 .quiz-nav .btn{flex:1}
 .qi-example{font-size:12px;color:var(--text-subtle);background:#f8fafc;border-radius:8px;padding:10px;margin-top:8px;white-space:pre-wrap;line-height:1.5}
+
+/* 学习计时器 */
+.timer-card{background:linear-gradient(135deg,#fff,var(--primary-bg));border:1.5px solid var(--primary-bg2)}
+.timer-display{text-align:center;padding:14px 0 8px}
+.timer-display .t-time{font-size:46px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums;letter-spacing:1px;line-height:1.1}
+.timer-display .t-status{font-size:12px;color:var(--text-subtle);margin-top:4px;min-height:16px}
+.timer-display .t-status.running{color:var(--success);font-weight:600}
+.timer-display .t-status.paused{color:var(--warning);font-weight:600}
+.timer-btns{display:flex;gap:8px;margin-top:10px}
+.timer-btns .btn{flex:1;justify-content:center;padding:12px;font-size:15px}
+.timer-big-start{background:var(--success);color:#fff}
+.timer-big-start:active{background:#38a169}
+.timer-pause{background:var(--warning);color:#fff}
+.timer-stop{background:var(--primary);color:#fff}
+.timer-hint{font-size:11.5px;color:var(--text-subtle);text-align:center;margin-top:8px;line-height:1.5}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.timer-display.running .t-time{animation:pulse 2s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -378,6 +395,20 @@ canvas{max-width:100%}
 
   <!-- 打卡日历 -->
   <section class="page" id="page-calendar">
+    <!-- 学习计时器 -->
+    <div class="card timer-card">
+      <div class="card-title"><span class="left">⏱️ 学习计时器</span></div>
+      <div class="timer-display" id="timerDisplay">
+        <div class="t-time" id="timerTime">00:00:00</div>
+        <div class="t-status" id="timerStatus">点击开始计时</div>
+      </div>
+      <div class="timer-btns" id="timerBtns">
+        <button class="btn timer-big-start" id="timerStartBtn" onclick="timerStart()">▶ 开始</button>
+        <button class="btn timer-pause" id="timerPauseBtn" onclick="timerPause()" style="display:none">⏸ 暂停</button>
+        <button class="btn timer-stop" id="timerStopBtn" onclick="timerStop()" style="display:none">⏹ 结束打卡</button>
+      </div>
+      <div class="timer-hint" id="timerHint">学习时点击「开始」，结束后自动转入打卡，时长会自动填入</div>
+    </div>
     <div class="card">
       <div class="card-title"><span class="left">📅 打卡日历</span></div>
       <div class="cal-header">
@@ -556,7 +587,7 @@ function showPage(p,btn){
   document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   if(p==='stats')renderTrend();
-  if(p==='calendar')renderLineChart();
+  if(p==='calendar'){renderLineChart();timerRender()}
   if(p==='quiz')renderQuiz();
   if(p==='news')fetchNews();
   if(p==='kp')genDailyKP();
@@ -904,7 +935,126 @@ function renderCalendar(){
   while(true){const ds=cd.getFullYear()+'-'+String(cd.getMonth()+1).padStart(2,'0')+'-'+String(cd.getDate()).padStart(2,'0');if(DB.checkins[ds]!==undefined){streak++;cd.setDate(cd.getDate()-1)}else break}
   document.getElementById('streak').textContent=streak;
 }
-function openCheckin(ds){
+/* ============================================================
+   学习计时器
+   ============================================================ */
+let timerState={running:false,paused:false,startTs:0,accumulated:0,tickId:null};
+const TIMER_KEY='gk_timer_state';
+
+function timerLoadState(){
+  try{
+    const s=localStorage.getItem(TIMER_KEY);
+    if(s){
+      timerState=JSON.parse(s);
+      // 如果之前在运行，根据流逝时间更新
+      if(timerState.running&&!timerState.paused){
+        // 继续计时
+        timerState.tickId=setInterval(timerTick,1000);
+      }
+      timerRender();
+    }
+  }catch(e){}
+}
+function timerSaveState(){localStorage.setItem(TIMER_KEY,JSON.stringify({running:timerState.running,paused:timerState.paused,startTs:timerState.startTs,accumulated:timerState.accumulated}))}
+
+function timerGetElapsed(){
+  let total=timerState.accumulated;
+  if(timerState.running&&!timerState.paused){
+    total+=(Date.now()-timerState.startTs)/1000;
+  }
+  return total;
+}
+function timerFormat(sec){
+  sec=Math.floor(sec);
+  const h=Math.floor(sec/3600);
+  const m=Math.floor((sec%3600)/60);
+  const s=sec%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function timerTick(){
+  const elapsed=timerGetElapsed();
+  document.getElementById('timerTime').textContent=timerFormat(elapsed);
+}
+function timerRender(){
+  const elapsed=timerGetElapsed();
+  document.getElementById('timerTime').textContent=timerFormat(elapsed);
+  const status=document.getElementById('timerStatus');
+  const display=document.getElementById('timerDisplay');
+  const startBtn=document.getElementById('timerStartBtn');
+  const pauseBtn=document.getElementById('timerPauseBtn');
+  const stopBtn=document.getElementById('timerStopBtn');
+  const hint=document.getElementById('timerHint');
+  // 重置状态
+  startBtn.style.display='none';pauseBtn.style.display='none';stopBtn.style.display='none';
+  status.className='t-status';display.classList.remove('running');
+  if(!timerState.running){
+    status.textContent='点击开始计时';
+    startBtn.style.display='block';
+    startBtn.textContent=elapsed>0?'▶ 继续':'▶ 开始';
+    hint.textContent='学习时点击「开始」，结束后自动转入打卡，时长会自动填入';
+  }else if(timerState.paused){
+    status.textContent='已暂停';status.classList.add('paused');
+    startBtn.style.display='block';startBtn.textContent='▶ 继续';
+    pauseBtn.style.display='none';
+    stopBtn.style.display='block';
+    hint.textContent='点击「继续」恢复计时，或「结束打卡」保存时长';
+  }else{
+    status.textContent='计时中…';status.classList.add('running');
+    display.classList.add('running');
+    pauseBtn.style.display='block';pauseBtn.textContent='⏸ 暂停';
+    stopBtn.style.display='block';
+    hint.textContent='学习结束后点「结束打卡」，时长自动填入';
+  }
+}
+function timerStart(){
+  if(timerState.running&&!timerState.paused)return;
+  if(!timerState.running){
+    // 首次开始
+    timerState.running=true;timerState.paused=false;
+    timerState.startTs=Date.now();
+  }else if(timerState.paused){
+    // 从暂停恢复
+    timerState.paused=false;
+    timerState.startTs=Date.now();
+  }
+  if(timerState.tickId)clearInterval(timerState.tickId);
+  timerState.tickId=setInterval(timerTick,1000);
+  timerSaveState();timerRender();
+}
+function timerPause(){
+  if(!timerState.running||timerState.paused)return;
+  // 把当前段累加到 accumulated
+  timerState.accumulated+=(Date.now()-timerState.startTs)/1000;
+  timerState.paused=true;
+  if(timerState.tickId){clearInterval(timerState.tickId);timerState.tickId=null}
+  timerSaveState();timerRender();
+}
+function timerStop(){
+  if(!timerState.running)return;
+  // 累加最后一段
+  if(!timerState.paused){
+    timerState.accumulated+=(Date.now()-timerState.startTs)/1000;
+  }
+  const hours=timerState.accumulated/3600;
+  if(timerState.tickId){clearInterval(timerState.tickId);timerState.tickId=null}
+  // 重置计时器
+  const oldAccumulated=timerState.accumulated;
+  timerState={running:false,paused:false,startTs:0,accumulated:0,tickId:null};
+  localStorage.removeItem(TIMER_KEY);
+  timerRender();
+  // 自动打开打卡弹窗，预填时长（至少 5 分钟才打卡）
+  if(oldAccumulated<300){
+    toast('学习不足 5 分钟，未记录打卡');
+    return;
+  }
+  // 如果今天已有打卡，累加时长
+  const today=todayStr();
+  const existing=DB.checkins[today]||0;
+  openCheckin(today,Math.round((existing+hours)*10)/10);
+  toast(`计时 ${timerFormat(oldAccumulated)}，已转入打卡`);
+}
+
+function openCheckin(ds,presetHours){
   checkinDate=ds;
   document.getElementById('checkinTitle').textContent=`${ds} 打卡`;
   const existing=DB.checkins[ds];
@@ -914,8 +1064,10 @@ function openCheckin(ds){
   let mhtml='';for(let i=0;i<60;i+=5)mhtml+=`<div class="opt" data-v="${i}">${i}分</div>`;
   document.getElementById('minCol').innerHTML=mhtml;
   openModal('modal-checkin');
-  const eh=existing?Math.floor(existing):0;
-  const em=existing?Math.round((existing-eh)*60/5)*5:0;
+  // 优先用预设时长（来自计时器），其次用已有记录
+  let preset=presetHours||existing||0;
+  const eh=Math.floor(preset);
+  const em=Math.round((preset-eh)*60/5)*5;
   setTimeout(()=>{scrollPickerTo('hourCol',eh);scrollPickerTo('minCol',em/5);updatePickedTime()},50);
   ['hourCol','minCol'].forEach(id=>{
     const col=document.getElementById(id);
@@ -1450,7 +1602,7 @@ function init(){
   load();fillSectionSelects();initCal();
   document.getElementById('examDate').value=todayStr();
   document.getElementById('statDate').value=todayStr();
-  renderAll();updateHeader();setupTimers();
+  renderAll();updateHeader();setupTimers();timerLoadState();
 }
 init();
 // PWA Service Worker 注册（离线缓存）
