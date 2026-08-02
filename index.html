@@ -497,6 +497,11 @@ canvas{max-width:100%}
 </div></div>
 
 <div class="modal-overlay" id="modal-checkin"><div class="modal"><div class="modal-handle"></div><h3 id="checkinTitle">打卡</h3>
+  <div id="timerResultBanner" style="display:none;background:linear-gradient(135deg,#f0fff4,#e6fffa);border:1.5px solid #9ae6b4;border-radius:12px;padding:10px 12px;margin-bottom:10px;text-align:center">
+    <div style="font-size:12px;color:var(--text-subtle)">⏱️ 本次学习计时</div>
+    <div id="timerResultText" style="font-size:28px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums;letter-spacing:1px;margin:2px 0">00:00:00</div>
+    <div style="font-size:12px;color:#38a169">已自动填入下方时长，点确认即可完成打卡</div>
+  </div>
   <p style="text-align:center;font-size:13px;color:var(--text-subtle);margin-bottom:6px">请选择学习时长（小时）</p>
   <div class="scroll-picker" id="hourPicker">
     <div class="col" id="hourCol"></div>
@@ -1050,15 +1055,23 @@ function timerStop(){
   // 如果今天已有打卡，累加时长
   const today=todayStr();
   const existing=DB.checkins[today]||0;
-  openCheckin(today,Math.round((existing+hours)*10)/10);
+  openCheckin(today,Math.round((existing+hours)*10)/10,oldAccumulated);
   toast(`计时 ${timerFormat(oldAccumulated)}，已转入打卡`);
 }
 
-function openCheckin(ds,presetHours){
+function openCheckin(ds,presetHours,timerSecs){
   checkinDate=ds;
   document.getElementById('checkinTitle').textContent=`${ds} 打卡`;
   const existing=DB.checkins[ds];
   document.getElementById('delCheckinBtn').style.display=existing!==undefined?'block':'none';
+  // 计时结果提示条
+  const banner=document.getElementById('timerResultBanner');
+  if(timerSecs&&timerSecs>=300){
+    banner.style.display='block';
+    document.getElementById('timerResultText').textContent=timerFormat(timerSecs);
+  }else{
+    banner.style.display='none';
+  }
   let hhtml='';for(let i=0;i<=16;i++)hhtml+=`<div class="opt" data-v="${i}">${i}时</div>`;
   document.getElementById('hourCol').innerHTML=hhtml;
   let mhtml='';for(let i=0;i<60;i+=5)mhtml+=`<div class="opt" data-v="${i}">${i}分</div>`;
